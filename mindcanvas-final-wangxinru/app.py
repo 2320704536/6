@@ -1,180 +1,80 @@
 import streamlit as st
-import requests
 import plotly.express as px
+import random
 
-# ==============================
-# PAGE CONFIGURATION
-# ==============================
+# ---------------- PAGE CONFIG ----------------
 st.set_page_config(page_title="MindCanvas — DreamWeaver Edition", page_icon="🌌", layout="wide")
 
-# ==============================
-# STYLING
-# ==============================
-st.markdown('''
-    <style>
-    body {
-        background: linear-gradient(180deg, #b8c6ff 0%, #e8e9ff 50%, #d5d9f6 100%);
-        color: #101018;
-        font-family: "Inter", sans-serif;
-    }
-    .stApp {
-        background: radial-gradient(circle at 50% 20%, rgba(180,180,255,0.3), rgba(200,220,255,0.1));
-    }
-    h1, h2, h3 {
-        font-family: "Inter", sans-serif;
-        font-weight: 700;
-    }
-    </style>
-''', unsafe_allow_html=True)
+# ---------------- STYLE ----------------
+st.markdown("""
+<style>
+body {
+    background: linear-gradient(180deg, #b8c6ff 0%, #e8e9ff 50%, #d5d9f6 100%);
+    color: #101018;
+    font-family: "Inter", sans-serif;
+}
+.stApp {
+    background: radial-gradient(circle at 50% 20%, rgba(180,180,255,0.3), rgba(200,220,255,0.1));
+}
+h1, h2, h3 {
+    font-family: "Inter", sans-serif;
+    font-weight: 700;
+}
+</style>
+""", unsafe_allow_html=True)
 
 st.title("🌌 MindCanvas • DreamWeaver Edition")
 st.markdown("A synesthetic space where dreams meet data — Created by **Wang Xinru**")
 
-# ==============================
-# API KEYS
-# ==============================
-NINJAS_KEY = st.secrets.get("ninjas_key")
-HF_TOKEN = st.secrets.get("hf_token")
-PIXABAY_KEY = st.secrets.get("pixabay_key")
-
+# ---------------- INPUT ----------------
 keyword = st.text_input("Enter a dream keyword (e.g. ocean, flying, city, forest):", "dream")
 
-# ==============================
-# 1. EMOTION ANALYZER
-# ==============================
+# ---------------- EMOTION ANALYZER ----------------
 st.header("🧠 Emotion Analyzer")
+emo_labels = ["Joy", "Curiosity", "Peace", "Wonder", "Sadness", "Fear"]
+emo_scores = [round(random.uniform(0.1, 1.0), 2) for _ in emo_labels]
+fig = px.bar(x=emo_labels, y=emo_scores, color=emo_labels, title="Simulated Emotion Distribution")
+st.plotly_chart(fig, use_container_width=True)
+st.caption("✨ Local mode: showing simulated emotional spectrum.")
 
-if HF_TOKEN:
-    try:
-        resp = requests.post(
-            "https://api-inference.huggingface.co/models/SamLowe/roberta-base-go_emotions",
-            headers={"Authorization": f"Bearer {HF_TOKEN}"},
-            json={"inputs": f"I had a dream about {keyword}. It made me feel emotional and inspired."},
-            timeout=30
-        )
-        data = resp.json()
-        emotions = []
-        if isinstance(data, list):
-            if isinstance(data[0], list):
-                emotions = data[0]
-            elif isinstance(data[0], dict):
-                emotions = data
-        if emotions:
-            df = {item["label"]: item["score"] for item in emotions}
-            fig = px.bar(
-                x=list(df.keys()),
-                y=list(df.values()),
-                title="Emotion Distribution",
-                color=list(df.keys()),
-                labels={"x": "Emotion", "y": "Confidence"}
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.warning("No emotion data returned.")
-    except Exception as e:
-        st.warning(f"Emotion API error: {e}")
-else:
-    st.info("请在 secrets 中设置 HuggingFace token。")
-
-# ==============================
-# 2. VISUAL MOOD BOARD
-# ==============================
+# ---------------- VISUAL MOOD BOARD ----------------
 st.header("🖼️ Visual Mood Board")
+sample_images = {
+    "dream": "https://cdn.pixabay.com/photo/2016/11/29/03/14/dreamcatcher-1867431_1280.jpg",
+    "flower": "https://cdn.pixabay.com/photo/2018/08/27/21/45/rose-3636421_1280.jpg",
+    "forest": "https://cdn.pixabay.com/photo/2015/11/07/11/29/forest-1031022_1280.jpg",
+    "ocean": "https://cdn.pixabay.com/photo/2015/03/26/09/54/ocean-690115_1280.jpg"
+}
+img_url = sample_images.get(keyword.lower(), random.choice(list(sample_images.values())))
+st.image(img_url, caption=f"keyword: {keyword}")
 
-if PIXABAY_KEY:
-    try:
-        img_url = f"https://pixabay.com/api/?key={PIXABAY_KEY}&q={keyword}&image_type=photo&per_page=3"
-        r = requests.get(img_url, timeout=10)
-        if r.headers.get("Content-Type", "").startswith("application/json"):
-            data = r.json()
-            if data.get("hits"):
-                st.image(data["hits"][0]["webformatURL"], caption=f"keyword: {keyword}")
-            else:
-                st.warning("未找到相关图片。")
-        else:
-            st.warning("Pixabay 图像接口暂时不可用。")
-    except Exception as e:
-        st.error(f"Pixabay 图像错误: {e}")
-else:
-    st.info("请在 secrets 中设置 Pixabay key。")
-
-# ==============================
-# 3. SOUNDSCAPE
-# ==============================
+# ---------------- SOUNDSCAPE ----------------
 st.header("🎵 Soundscape")
+fallback_audio = "https://cdn.pixabay.com/download/audio/2021/09/14/audio_19f2bfa05b.mp3?filename=dreamy-ambient-1135.mp3"
+st.audio(fallback_audio)
+st.caption("🎧 Ambient dream sound loaded locally")
 
-if PIXABAY_KEY:
-    try:
-        sound_url = f"https://pixabay.com/api/audio/?key={PIXABAY_KEY}&q={keyword}&per_page=3"
-        r = requests.get(sound_url, timeout=10)
-        if r.headers.get("Content-Type", "").startswith("application/json"):
-            data = r.json()
-            if data.get("hits"):
-                audio = data["hits"][0].get("audio") or data["hits"][0].get("previewURL")
-                if audio:
-                    st.audio(audio)
-                else:
-                    st.warning("找到音效但无有效音频链接。")
-            else:
-                st.warning("未找到相关音效。")
-        else:
-            # Fallback audio
-            fallback_audio = "https://cdn.pixabay.com/download/audio/2021/09/14/audio_19f2bfa05b.mp3?filename=dreamy-ambient-1135.mp3"
-            st.audio(fallback_audio)
-            st.caption("🔄 Fallback sound loaded (Pixabay unavailable)")
-    except Exception as e:
-        st.error(f"音效模块错误: {e}")
-else:
-    st.info("请在 secrets 中设置 Pixabay key。")
-
-# ==============================
-# 4. MOOD QUOTE
-# ==============================
+# ---------------- MOOD QUOTE ----------------
 st.header("💬 Mood Quote")
+quotes = [
+    ("Dreams are the whispers of the soul.", "Unknown"),
+    ("In dreams, we touch the infinite.", "Anaïs Nin"),
+    ("The future belongs to those who believe in the beauty of their dreams.", "Eleanor Roosevelt"),
+    ("A single dream is more powerful than a thousand realities.", "J.R.R. Tolkien")
+]
+quote, author = random.choice(quotes)
+st.markdown(f"_{quote}_ — **{author}**")
 
-if NINJAS_KEY:
-    try:
-        headers = {"X-Api-Key": NINJAS_KEY}
-        categories = ["dreams", "inspirational", "life", "happiness", "success"]
-        quote = None
-        for cat in categories:
-            url = f"https://api.api-ninjas.com/v1/quotes?category={cat}"
-            res = requests.get(url, headers=headers, timeout=10)
-            if res.ok and isinstance(res.json(), list) and res.json():
-                quote = res.json()[0]
-                break
-        if quote:
-            st.markdown(f"_{quote['quote']}_ — **{quote['author']}**")
-        else:
-            st.warning("未获得引用。")
-    except Exception as e:
-        st.error(f"Quote API 错误: {e}")
-else:
-    st.info("请在 secrets 中设置 API Ninjas key。")
-
-# ==============================
-# 5. AI REFLECTION
-# ==============================
+# ---------------- AI REFLECTION ----------------
 st.header("🪞 AI Reflection")
+reflections = [
+    f"✨ In the realm of {keyword}, emotions bloom like constellations in the sky.",
+    f"✨ Every {keyword} drifts between memory and imagination, a bridge of unseen colors.",
+    f"✨ To dream of {keyword} is to remember what it means to feel alive.",
+    f"✨ {keyword.capitalize()} becomes a mirror — reflecting both longing and peace."
+]
+st.write(random.choice(reflections))
 
-if HF_TOKEN:
-    try:
-        url = "https://api-inference.huggingface.co/models/tiiuae/falcon-7b-instruct"
-        payload = {"inputs": f"Write a reflective poetic thought about {keyword} and the nature of dreams in two sentences."}
-        r = requests.post(url, headers={"Authorization": f"Bearer {HF_TOKEN}"}, json=payload, timeout=20)
-        result = r.json()
-        if isinstance(result, list) and "generated_text" in result[0]:
-            text = result[0]["generated_text"]
-            st.write("✨ " + text[:400])
-        else:
-            st.write("✨ The dream fades into silence... (no reflection generated)")
-    except Exception as e:
-        st.warning(f"HuggingFace 反思模块错误: {e}")
-else:
-    st.info("请在 secrets 中设置 HuggingFace token。")
-
-# ==============================
-# FOOTER
-# ==============================
+# ---------------- FOOTER ----------------
 st.markdown("---")
 st.caption("Created by Wang Xinru — MindCanvas Final Edition 🌙")
