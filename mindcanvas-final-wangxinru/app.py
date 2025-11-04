@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 import plotly.express as px
+
 st.set_page_config(page_title="MindCanvas — DreamWeaver Edition", page_icon="🧠", layout="wide")
 
 # ----- STYLE -----
@@ -35,12 +36,13 @@ if HF_TOKEN:
         resp = requests.post(
             "https://api-inference.huggingface.co/models/j-hartmann/emotion-english-distilroberta-base",
             headers={"Authorization": f"Bearer {HF_TOKEN}"},
-            json={"inputs": keyword},
-            timeout=10
+            json={"inputs": f"I had a dream about {keyword}. It felt mysterious and vivid."},
+            timeout=15
         )
-        data = resp.json()[0] if isinstance(resp.json(), list) else []
-        if data:
-            df = {item["label"]: item["score"] for item in data}
+        data = resp.json()
+        emotions = data[0] if isinstance(data, list) and data and isinstance(data[0], list) else []
+        if emotions:
+            df = {item["label"]: item["score"] for item in emotions}
             fig = px.bar(x=list(df.keys()), y=list(df.values()), title="Emotion Distribution", color=list(df.keys()))
             st.plotly_chart(fig, use_container_width=True)
         else:
@@ -55,7 +57,7 @@ st.header("🖼️ Visual Mood Board")
 if PIXABAY_KEY:
     try:
         img_url = f"https://pixabay.com/api/?key={PIXABAY_KEY}&q={keyword}&image_type=photo&per_page=3"
-        r = requests.get(img_url).json()
+        r = requests.get(img_url, timeout=10).json()
         if r.get("hits"):
             st.image(r["hits"][0]["webformatURL"], caption=f"keyword: {keyword}")
         else:
@@ -70,10 +72,13 @@ st.header("🎵 Soundscape")
 if PIXABAY_KEY:
     try:
         sound_url = f"https://pixabay.com/api/audio/?key={PIXABAY_KEY}&q={keyword}&per_page=3"
-        r = requests.get(sound_url).json()
+        r = requests.get(sound_url, timeout=10).json()
         if r.get("hits"):
-            audio = r["hits"][0]["audio"]
-            st.audio(audio)
+            audio = r["hits"][0].get("audio") or r["hits"][0].get("previewURL")
+            if audio:
+                st.audio(audio)
+            else:
+                st.warning("找到音效但无有效音频链接。")
         else:
             st.warning("未找到相关音效。")
     except Exception as e:
@@ -85,7 +90,7 @@ else:
 st.header("💬 Mood Quote")
 if NINJAS_KEY:
     try:
-        url = f"https://api.api-ninjas.com/v1/quotes?category=inspirational"
+        url = "https://api.api-ninjas.com/v1/quotes?category=dreams"
         headers = {"X-Api-Key": NINJAS_KEY}
         res = requests.get(url, headers=headers, timeout=10).json()
         if isinstance(res, list) and res:
@@ -101,14 +106,19 @@ else:
 st.header("🪞 AI Reflection")
 if HF_TOKEN:
     try:
-        payload = {"inputs": f"Write a poetic reflection about {keyword} and human emotion."}
-        r = requests.post("https://api-inference.huggingface.co/models/gpt2",
-                          headers={"Authorization": f"Bearer {HF_TOKEN}"},
-                          json=payload,
-                          timeout=10)
+        payload = {"inputs": f"Write a gentle poetic reflection about {keyword}, dreams, and human emotions in 2 sentences."}
+        r = requests.post(
+            "https://api-inference.huggingface.co/models/gpt2",
+            headers={"Authorization": f"Bearer {HF_TOKEN}"},
+            json=payload,
+            timeout=15
+        )
         result = r.json()
-        text = result[0]["generated_text"] if isinstance(result, list) and "generated_text" in result[0] else "No reflection generated."
-        st.write(text[:400])
+        if isinstance(result, list) and "generated_text" in result[0]:
+            text = result[0]["generated_text"]
+            st.write(text[:400])
+        else:
+            st.write("No reflection generated.")
     except Exception as e:
         st.warning(f"HuggingFace 反思模块错误: {e}")
 else:
