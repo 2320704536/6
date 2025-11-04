@@ -1,8 +1,7 @@
-st.write("🔍 Secrets Loaded:", list(st.secrets.keys()))
 import streamlit as st
 import requests
 import plotly.express as px
-
+st.write("🔍 Secrets Loaded:", list(st.secrets.keys()))
 st.set_page_config(page_title="MindCanvas — DreamWeaver Edition", page_icon="🧠", layout="wide")
 
 # ----- STYLE -----
